@@ -14,3 +14,4 @@ jobs:
         with:
           dotnet-version: 8.0.x
       - run: dotnet build TaskbarThermals.csproj -c Release --nologo
+      - run: dotnet run --project tests/TaskbarThermals.Contracts.csproj -c Release

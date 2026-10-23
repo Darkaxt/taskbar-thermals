@@ -186,6 +186,7 @@ internal static class L
         "net.up" => T("Upload", "Yükleme"),
         "disk.read" => T("Read", "Okuma"),
         "disk.write" => T("Write", "Yazma"),
+        "cooler.speed" => T("Fan speed %", "Fan hızı %"),
         _ => id,
     };
     public static string DeviceName(Device d) => d switch
@@ -193,6 +194,7 @@ internal static class L
         Device.Ram => "RAM",
         Device.Net => T("Network", "Ağ"),
         Device.Disk => T("Disk", "Disk"),
+        Device.Cooler => "BS2 Pro",
         _ => d.ToString().ToUpperInvariant(),
     };
     public static string FontSize => T("Font size", "Yazı boyutu");
@@ -217,4 +219,18 @@ internal static class L
     public static string Cancel => T("Cancel", "İptal");
     public static string ThresholdOrder => T("The warning threshold must be lower than the critical one.", "Sarı eşik, kırmızı eşikten küçük olmalı.");
     public static string PickOneMetric => T("Pick at least one value to show on the taskbar.", "Görev çubuğunda en az bir değer seç.");
+
+    public static string CoolerTitle => T("Cooling base · BS2 Pro", "Soğutucu · BS2 Pro");
+    public static string CoolerStatus(CoolerState state) => state switch
+    {
+        CoolerState.Connected => T("Connected through THRM", "THRM üzerinden bağlı"),
+        CoolerState.Disconnected => T("Connect the BS2 Pro in THRM", "BS2 Pro'yu THRM'de bağlayın"),
+        CoolerState.WaitingForReading => T("Waiting for fan reading", "Fan verisi bekleniyor"),
+        CoolerState.DifferentModel => T("THRM is connected to another cooler", "THRM başka bir soğutucuya bağlı"),
+        CoolerState.InvalidReading => T("Fan reading unavailable", "Fan verisi kullanılamıyor"),
+        _ => T("Start THRM to read fan speed", "Fan hızını okumak için THRM'yi başlatın"),
+    };
+    public static string CoolerDetail(CoolerSnapshot cooler) => cooler.Rpm is int rpm
+        ? $"{rpm:N0} / {CoolerSnapshot.MaximumRpm:N0} RPM  ·  {Percent(cooler.Percent!.Value)}"
+        : CoolerStatus(cooler.State);
 }

@@ -28,6 +28,10 @@ internal sealed class OverlayForm : Form
     private readonly SustainedAlert _cpuAlert = new();
     private readonly SustainedAlert _gpuAlert = new();
     private readonly ManualResetEvent _stop = new(false);
+    private readonly ThrmClient _cooler = new();
+    private readonly CancellationTokenSource _coolerStop = new();
+    private readonly ToolTip _tooltip = new();
+    private Task? _coolerWorker;
     private readonly System.Windows.Forms.Timer _placementTimer = new() { Interval = 250 };
     private readonly System.Windows.Forms.Timer _updateTimer = new() { Interval = 24 * 60 * 60 * 1000 };
     private readonly ContextMenuStrip _menu = new() { ShowImageMargin = false, ShowCheckMargin = true };
@@ -75,6 +79,8 @@ internal sealed class OverlayForm : Form
         StartPosition = FormStartPosition.Manual;
         AutoScaleMode = AutoScaleMode.None;
         Text = "Taskbar Thermals";
+        AccessibleName = "CPU, GPU and BS2 Pro monitor";
+        AccessibleRole = AccessibleRole.Indicator;
         L.Apply(_settings.Language);
 
         _spikes = new SpikeLogger(() => _settings);
@@ -95,6 +101,7 @@ internal sealed class OverlayForm : Form
         _tray.BalloonTipClicked += (_, _) => { if (_balloonUrl != null) OpenUrl(_balloonUrl); };
 
         _stability.EventLogged += ev => Post(() => OnStabilityEvent(ev));
+        _cooler.Changed += () => Post(OnCoolerChanged);
     }
 
     protected override CreateParams CreateParams
@@ -123,6 +130,7 @@ internal sealed class OverlayForm : Form
 
         _worker = new Thread(WorkerLoop) { IsBackground = true, Name = "Sensors" };
         _worker.Start();
+        _coolerWorker = Task.Run(() => _cooler.RunAsync(_coolerStop.Token));
 
         Task.Run(() => _stability.Start(TimeSpan.FromDays(7))).ContinueWith(_ => Post(OnStabilityLoaded));
         Task.Delay(TimeSpan.FromMinutes(1)).ContinueWith(_ => Post(CheckForUpdates));
@@ -136,7 +144,11 @@ internal sealed class OverlayForm : Form
         _tray.Visible = false;
         _tray.Dispose();
         _stop.Set();
-        _worker?.Join(3000);
+        _coolerStop.Cancel();
+        _coolerWorker?.GetAwaiter().GetResult();
+        _worker?.Join();
+        _coolerStop.Dispose();
+        _tooltip.Dispose();
         _minutes.Flush();
         _sensors?.Dispose();
         _processes.Dispose();
@@ -187,6 +199,7 @@ internal sealed class OverlayForm : Form
     private void OnReading(Reading r, DateTime at)
     {
         if (IsDisposed) return;
+        r = r with { Cooler = _cooler.Current };
         _reading = r;
         _history.Add(at, r);
         _minutes.Add(at, r);
@@ -200,11 +213,27 @@ internal sealed class OverlayForm : Form
             Notify(L.GpuHotTitle, L.HotText("GPU", r.GpuTemp!.Value, _settings.AlertGpuTemp, _settings.AlertSeconds), ToolTipIcon.Warning);
 
         _tray.Text = $"Taskbar Thermals\nCPU {TempText(r.CpuTemp)}  {LoadText(r.CpuLoad)}\nGPU {TempText(r.GpuTemp)}  {LoadText(r.GpuLoad)}";
+        UpdateTooltip();
         Render();
         RefreshPanel();
     }
 
     private static string TempText(float? t) => t is float v ? $"{v:0}°C" : "--";
+
+    private void OnCoolerChanged()
+    {
+        _reading = _reading with { Cooler = _cooler.Current };
+        UpdateTooltip();
+        Render();
+        RefreshPanel();
+    }
+
+    private void UpdateTooltip()
+    {
+        string text = $"CPU  {TempText(_reading.CpuTemp)}  {LoadText(_reading.CpuLoad)}\nGPU  {TempText(_reading.GpuTemp)}  {LoadText(_reading.GpuLoad)}\nBS2 Pro  {L.CoolerDetail(_reading.Cooler)}";
+        _tooltip.SetToolTip(this, text);
+        AccessibleDescription = text;
+    }
     private static string LoadText(float? l) => l is float v ? L.Percent(v) : "--";
 
     private void Notify(string title, string text, ToolTipIcon icon, string? url = null)
@@ -479,7 +508,7 @@ internal sealed class OverlayForm : Form
         foreach (var pair in lines.Chunk(2))
         {
             float labelX = x;
-            x += pair.Max(l => Measure(g, Metrics.DeviceLabel(l.Device), _labelFont));
+            x += pair.Max(l => DeviceGlyphs.HasGlyph(l.Device) ? Px(14f) : Measure(g, Metrics.DeviceLabel(l.Device), _labelFont));
             int columns = pair.Max(l => l.Fields.Length);
             var widths = new float[columns];
             var rights = new float[columns];
@@ -503,8 +532,13 @@ internal sealed class OverlayForm : Form
     private void Render()
     {
         if (!IsHandleCreated || _size.Width <= 0 || _size.Height <= 0 || _labelFont is null || _valueFont is null) return;
+        using var bmp = DrawOverlay();
+        Native.UpdateLayered(Handle, bmp, _pos);
+    }
 
-        using var bmp = new Bitmap(_size.Width, _size.Height, PixelFormat.Format32bppPArgb);
+    private Bitmap DrawOverlay()
+    {
+        var bmp = new Bitmap(_size.Width, _size.Height, PixelFormat.Format32bppPArgb);
         using (var g = Graphics.FromImage(bmp))
         {
             g.SmoothingMode = SmoothingMode.AntiAlias;
@@ -540,7 +574,19 @@ internal sealed class OverlayForm : Form
             }
         }
 
-        Native.UpdateLayered(Handle, bmp, _pos);
+        return bmp;
+    }
+
+    /// <summary>Uses the actual overlay renderer for the explicit --preview-overlay diagnostic.</summary>
+    internal Bitmap SnapshotOverlay(Reading reading, int dpi, bool light)
+    {
+        _reading = reading;
+        _dpi = dpi;
+        _light = light;
+        _settings = new Settings { Metrics = Metrics.Defaults.ToList() };
+        _taskbar = new Rectangle(0, 0, 1920, Px(48));
+        Relayout();
+        return DrawOverlay();
     }
 
     private void DrawLine(Graphics g, Block block, Line line, float centerY)
@@ -553,7 +599,9 @@ internal sealed class OverlayForm : Form
 
         using var dimBrush = new SolidBrush(dim);
         string label = Metrics.DeviceLabel(line.Device);
-        g.DrawString(label, _labelFont!, dimBrush, new RectangleF(block.LabelX, top, Measure(g, label, _labelFont!) + Px(4f), rowH), LeftFormat);
+        if (DeviceGlyphs.HasGlyph(line.Device))
+            DeviceGlyphs.Draw(g, line.Device, new RectangleF(block.LabelX, centerY - Px(7f), Px(14f), Px(14f)), text);
+        else g.DrawString(label, _labelFont!, dimBrush, new RectangleF(block.LabelX, top, Measure(g, label, _labelFont!) + Px(4f), rowH), LeftFormat);
 
         for (int c = 0; c < line.Fields.Length; c++)
         {

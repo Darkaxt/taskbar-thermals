@@ -27,6 +27,7 @@ internal sealed record Reading
     public float? DiskRead { get; init; }     // bytes/s
     public float? DiskWrite { get; init; }
     public IReadOnlyList<(string Name, float Rpm)> Fans { get; init; } = Array.Empty<(string, float)>();
+    public CoolerSnapshot Cooler { get; init; } = CoolerSnapshot.Waiting;
 }
 
 /// <summary>Reads CPU/GPU/motherboard sensors. CPU temperature and board sensors need admin rights (PawnIO driver).</summary>

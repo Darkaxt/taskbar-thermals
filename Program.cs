@@ -19,6 +19,8 @@ internal static class Program
                 return Dump(args.Length > 1 ? args[1] : Path.Combine(AppPaths.Dir, "sensors.txt"));
             case "--preview":
                 return Preview(args.Length > 1 ? args[1] : AppPaths.Dir);
+            case "--preview-overlay":
+                return PreviewOverlay(args.Length > 1 ? args[1] : AppPaths.Dir);
             case "--demo":
                 return Demo(args.Length > 1 ? args[1] : AppPaths.Dir);
             case "--enable-startup":
@@ -108,6 +110,43 @@ internal static class Program
     }
 
     // ---------------------------------------------------------------- screenshots for the README
+
+    private static int PreviewOverlay(string directory)
+    {
+        Directory.CreateDirectory(directory);
+        L.Apply("en");
+        var examples = new Dictionary<string, Reading>
+        {
+            ["normal"] = new() { CpuTemp = 67, CpuLoad = 28, GpuTemp = 47, GpuLoad = 1, Cooler = new(CoolerState.Connected, 3300) },
+            ["unavailable"] = new() { CpuTemp = 67, CpuLoad = 28, GpuTemp = 47, GpuLoad = 1 },
+            ["maximum"] = new() { CpuTemp = 100, CpuLoad = 100, GpuTemp = 100, GpuLoad = 100, Cooler = new(CoolerState.Connected, 4000) },
+        };
+        using var overlay = new OverlayForm();
+        foreach (int dpi in new[] { 96, 144, 192 })
+        foreach (bool light in new[] { false, true })
+        foreach (var (name, reading) in examples)
+        {
+            using var rendered = overlay.SnapshotOverlay(reading, dpi, light);
+            using var bitmap = new Bitmap(rendered.Width, rendered.Height);
+            using var g = Graphics.FromImage(bitmap);
+            g.Clear(light ? Color.FromArgb(243, 243, 243) : Color.FromArgb(32, 32, 32));
+            g.DrawImageUnscaled(rendered, 0, 0);
+            bitmap.Save(Path.Combine(directory, $"overlay-{dpi}-{(light ? "light" : "dark")}-{name}.png"));
+        }
+        foreach (var theme in new[] { Theme.Dark, Theme.LightMode })
+        foreach (var name in new[] { "normal", "unavailable" })
+        {
+            Theme.Override = theme;
+            using var panel = new DetailPanel();
+            panel.UpdateState(new PanelState(examples[name], Array.Empty<Sample>(), Array.Empty<MinuteSample>(),
+                "CPU", "GPU", null, null, Array.Empty<StabilityEvent>(), false, null, false,
+                new Settings { Metrics = Metrics.Defaults.ToList() }));
+            using var rendered = panel.Snapshot();
+            rendered.Save(Path.Combine(directory, $"cooler-details-{(theme.Light ? "light" : "dark")}-{name}.png"));
+        }
+        Theme.Override = null;
+        return 0;
+    }
 
     /// <summary>
     /// Live sensor reading plus generated history (an hour of seconds, a day of minutes) so the charts have

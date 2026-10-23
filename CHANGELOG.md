@@ -1,5 +1,14 @@
 # Changelog
 
+## 1.2.0
+
+- Replace CPU/GPU taskbar labels with DPI-scaled monochrome device icons.
+- Add a fan icon and measured BS2 Pro speed percentage, read from THRM's existing local IPC. For example, 3,300 RPM out of 4,000 RPM displays 83%; stopped fans display 0%, unavailable readings display --%.
+- Show RPM, the 4,000 RPM denominator and connection guidance in hover/details. Clear readings on cooler disconnect or THRM exit and recover when THRM returns. Other cooler models are not mislabeled as BS2 Pro.
+- Default to CPU/GPU temperature and usage plus cooling-base speed, with power readings optional. Existing metric selections are preserved.
+- Keep fan control exclusively in THRM and point update checks to this fork's releases.
+- Add actual named-pipe contract checks and an overlay-render diagnostic for light/dark themes at 100%, 150% and 200% DPI.
+
 ## 1.1.0
 
 - **Pick what the taskbar shows**: temperature, usage, power and clock for the CPU and GPU, GPU memory temperature, RAM usage, network download/upload and disk read/write. Values are stacked two devices per block.

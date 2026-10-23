@@ -6,7 +6,7 @@ namespace TaskbarThermals;
 /// <summary>Asks the GitHub API for the latest release. Sends nothing but a plain HTTPS request with a User-Agent.</summary>
 internal static class UpdateChecker
 {
-    public const string Repository = "Quenchh/taskbar-thermals";
+    public const string Repository = "Darkaxt/taskbar-thermals";
     public const string ReleasesPage = $"https://github.com/{Repository}/releases/latest";
 
     public static Version Current

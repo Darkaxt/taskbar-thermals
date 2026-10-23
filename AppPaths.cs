@@ -65,6 +65,7 @@ internal sealed class Settings
 
     public static Settings Load()
     {
+        if (!File.Exists(FilePath)) return new Settings { Metrics = TaskbarThermals.Metrics.Defaults.ToList() };
         Settings s;
         try { s = JsonSerializer.Deserialize<Settings>(File.ReadAllText(FilePath)) ?? new(); }
         catch { s = new(); }

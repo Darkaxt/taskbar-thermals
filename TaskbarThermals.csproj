@@ -15,11 +15,11 @@
     <RuntimeIdentifier>win-x64</RuntimeIdentifier>
     <SelfContained>false</SelfContained>
     <SatelliteResourceLanguages>en</SatelliteResourceLanguages>
-    <Version>1.1.0</Version>
+    <Version>1.2.0</Version>
     <Product>Taskbar Thermals</Product>
     <AssemblyTitle>Taskbar Thermals</AssemblyTitle>
-    <Description>Live CPU/GPU temperature and usage on the Windows 11 taskbar</Description>
-    <Authors>Quenchh</Authors>
+    <Description>CPU/GPU taskbar icons with temperature, usage and Flydigi BS2 Pro fan telemetry</Description>
+    <Authors>Quenchh;Darkaxt</Authors>
     <Copyright>Copyright (c) 2026 Quenchh</Copyright>
   </PropertyGroup>
 
@@ -30,6 +30,7 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <Compile Remove="tests/**/*.cs" />
     <EmbeddedResource Include="icon.ico" LogicalName="TaskbarThermals.icon.ico" />
   </ItemGroup>
 

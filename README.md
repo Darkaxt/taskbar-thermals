@@ -1,8 +1,18 @@
 # Taskbar Thermals
 
+This fork adds Windows-style CPU/GPU icons and a **Flydigi BS2 Pro fan-speed percentage** to [Quenchh's Taskbar Thermals](https://github.com/Quenchh/taskbar-thermals). Temperature and usage remain visible; power is optional and hidden by default.
+
+The cooling-base reading comes from [THRM](https://github.com/TIANLI0/THRM)'s local Windows named pipe. Run THRM and connect the BS2 Pro there. This app observes measured RPM and never opens the cooler or sends fan-control commands. THRM already has an English interface.
+
+Fan percentage means measured RPM divided by 4,000 RPM: 3,300 RPM displays **83%**. It is not airflow or electrical duty cycle. Hover or open the details panel to see RPM and connection information. A stopped fan shows 0%; unavailable readings show `--%`. Other THRM-connected cooler models are deliberately not presented as this BS2 Pro.
+
+Space Station controller coexistence is a separate THRM/device configuration step; simply starting two cooler-control programs can cause competing commands. Keep your controller profiles and use a reviewed cooler-only coexistence setup. Disabling the standalone LibreHardwareMonitor application does not require removing the shared sensor library or PawnIO driver.
+
 Live CPU and GPU temperature and usage right on the Windows 11 taskbar — plus RAM, network and disk if you want them, a 24-hour history panel, temperature-spike logging and a hardware-error watcher for when you're tuning undervolts or BIOS settings.
 
-![Taskbar overlay](docs/taskbar.png)
+![CPU, GPU and BS2 Pro overlay](docs/bs2pro-overlay.png)
+
+Overlay renderer preview at 150% scaling, using example readings.
 
 <img src="docs/demo.gif" alt="Details panel: hovering the charts and switching between 10 minutes, 1 hour and 24 hours" width="380"> <img src="docs/settings.png" alt="Settings" width="380">
 
@@ -27,7 +37,7 @@ Live CPU and GPU temperature and usage right on the Windows 11 taskbar — plus 
 
 ## Download
 
-Grab the latest build from [Releases](https://github.com/Quenchh/taskbar-thermals/releases/latest):
+Grab the latest build from [Releases](https://github.com/Darkaxt/taskbar-thermals/releases/latest):
 
 | File | Size | Needs |
 |---|---|---|
@@ -39,7 +49,7 @@ Put the exe wherever you like and run it. It asks for administrator rights (need
 ## Build from source
 
 ```powershell
-git clone https://github.com/Quenchh/taskbar-thermals.git
+git clone https://github.com/Darkaxt/taskbar-thermals.git
 cd taskbar-thermals
 .\install.ps1              # builds, installs to %LOCALAPPDATA%\Programs\TaskbarThermals, starts with Windows
 .\install.ps1 -NoStartup   # same, without autostart
@@ -74,11 +84,13 @@ Everything lives in `%LOCALAPPDATA%\TaskbarThermals`:
 TaskbarThermals.exe --dump sensors.txt   # every sensor + a 20 s series of CPU power/temperature/fan speeds
 TaskbarThermals.exe --preview <folder>   # renders the details panel and settings window to PNGs
 TaskbarThermals.exe --demo <folder>      # renders the frames of the README animation
+TaskbarThermals.exe --preview-overlay <folder> # production overlay renderer, synthetic readings, three DPI scales and both themes
+dotnet run --project tests/TaskbarThermals.Contracts.csproj -c Release # telemetry and real local-pipe contracts
 ```
 
 ## Privacy
 
-Nothing leaves your PC except the optional update check: one HTTPS request shortly after start and then once a day to the GitHub API (`api.github.com/repos/Quenchh/taskbar-thermals/releases/latest`) with no data attached. Turn it off in settings.
+Nothing leaves your PC except the optional update check: one HTTPS request shortly after start and then once a day to the GitHub API (`api.github.com/repos/Darkaxt/taskbar-thermals/releases/latest`) with no data attached. Turn it off in settings. Cooler telemetry stays on the local named pipe.
 
 ## Releases
 

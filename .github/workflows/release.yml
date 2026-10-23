@@ -21,6 +21,8 @@ jobs:
       - name: Build
         shell: pwsh
         run: |
+          dotnet run --project tests/TaskbarThermals.Contracts.csproj -c Release
+          if ($LASTEXITCODE) { exit 1 }
           $version = '${{ github.ref_name }}'.TrimStart('v')
           $common = @('-c', 'Release', '-p:PublishSingleFile=true', '-p:IncludeNativeLibrariesForSelfExtract=true', "-p:Version=$version", '--nologo')
           dotnet publish TaskbarThermals.csproj @common -o out/fd

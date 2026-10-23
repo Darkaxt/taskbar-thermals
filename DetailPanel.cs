@@ -319,6 +319,8 @@ internal sealed class DetailPanel : Form
         y += Pf(18);
         y = DrawChart(g, y, L.Usage, LoadChart, s);
         y = Divider(g, y + Pf(14));
+        y = DrawCooler(g, y, r.Cooler);
+        y = Divider(g, y + Pf(10));
         y = DrawSystem(g, y, r);
         y = Divider(g, y + Pf(10));
         y = DrawStability(g, y, s);
@@ -670,6 +672,18 @@ internal sealed class DetailPanel : Form
     {
         TextAt(g, title, _fTitle!, _theme.Text, Pf(PadDip), y + Ascent(_fTitle!));
         return y + Pf(24);
+    }
+
+    private float DrawCooler(Graphics g, float y, CoolerSnapshot cooler)
+    {
+        y = SectionTitle(g, y, L.CoolerTitle);
+        TextAt(g, L.CoolerDetail(cooler), _fText!, _theme.Text, Pf(PadDip), y + Ascent(_fText!));
+        if (cooler.Rpm is not null)
+        {
+            y += Pf(20);
+            TextAt(g, L.CoolerStatus(cooler.State), _fSmall!, _theme.TextSecondary, Pf(PadDip), y + Ascent(_fSmall!));
+        }
+        return y + Pf(20);
     }
 
     private float DrawSystem(Graphics g, float y, Reading r)

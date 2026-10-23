@@ -1,6 +1,6 @@
 namespace TaskbarThermals;
 
-internal enum Device { Cpu, Gpu, Ram, Net, Disk }
+internal enum Device { Cpu, Gpu, Ram, Net, Disk, Cooler }
 
 internal enum HistoryRange { TenMinutes, Hour, Day }
 
@@ -9,7 +9,7 @@ internal sealed record Metric(string Id, Device Device, Func<string> Template, F
 
 internal static class Metrics
 {
-    public static readonly string[] Defaults = { "cpu.temp", "cpu.load", "gpu.temp", "gpu.load" };
+    public static readonly string[] Defaults = { "cpu.temp", "cpu.load", "gpu.temp", "gpu.load", "cooler.speed" };
 
     public static readonly Metric[] All =
     {
@@ -27,6 +27,7 @@ internal static class Metrics
         new("net.up", Device.Net, () => "↑888M", r => "↑" + Rate(r.NetUp)),
         new("disk.read", Device.Disk, () => "R 888M", r => "R " + Rate(r.DiskRead)),
         new("disk.write", Device.Disk, () => "W 888M", r => "W " + Rate(r.DiskWrite)),
+        new("cooler.speed", Device.Cooler, () => L.Percent(100), r => r.Cooler.Percent is int p ? L.Percent(p) : L.Turkish ? "%--" : "--%"),
     };
 
     public static string DeviceLabel(Device d) => d switch
