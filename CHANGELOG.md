@@ -1,5 +1,12 @@
 # Changelog
 
+## 1.2.1
+
+- Match StartAllBack's separated tray with a rounded monitor background, keeping unused taskbar areas transparent.
+- Follow the visible tray's current background tint using only its empty margin pixels. Covered tray areas and the monitor itself cannot feed back into the sampled color.
+- Preserve the ordinary taskbar's transparent overlay, device metrics, fixed columns, drag/details and hover behavior.
+- Verify the actual rounded surface renderer in light/dark at 100%, 150% and 200% DPI.
+
 ## 1.2.0
 
 - Replace CPU/GPU taskbar labels with DPI-scaled monochrome device icons.

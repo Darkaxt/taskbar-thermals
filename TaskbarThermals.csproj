@@ -15,7 +15,7 @@
     <RuntimeIdentifier>win-x64</RuntimeIdentifier>
     <SelfContained>false</SelfContained>
     <SatelliteResourceLanguages>en</SatelliteResourceLanguages>
-    <Version>1.2.0</Version>
+    <Version>1.2.1</Version>
     <Product>Taskbar Thermals</Product>
     <AssemblyTitle>Taskbar Thermals</AssemblyTitle>
     <Description>CPU/GPU taskbar icons with temperature, usage and Flydigi BS2 Pro fan telemetry</Description>
@@ -31,6 +31,7 @@
 
   <ItemGroup>
     <Compile Remove="tests/**/*.cs" />
+    <InternalsVisibleTo Include="TaskbarThermals.Contracts" />
     <EmbeddedResource Include="icon.ico" LogicalName="TaskbarThermals.icon.ico" />
   </ItemGroup>
 

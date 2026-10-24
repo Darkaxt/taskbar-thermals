@@ -109,3 +109,5 @@ Equal<int?>(null, waitingClient.Current.Rpm, "Absent THRM never supplies a false
 noServerCancellation.Cancel();
 await waiting;
 Console.WriteLine("PASS: actual named-pipe request boundary, streamed updates, server restart and cancellation with THRM absent");
+OverlaySurfaceContract.Run();
+Console.WriteLine("PASS: actual overlay background, transparent margins and rounded corners at each DPI/theme");

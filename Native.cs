@@ -67,6 +67,43 @@ internal static class Native
     public static extern bool GetWindowRect(IntPtr hwnd, out RECT rect);
 
     [DllImport("user32.dll")]
+    private static extern IntPtr WindowFromPoint(POINT point);
+
+    [DllImport("user32.dll")]
+    private static extern IntPtr GetAncestor(IntPtr hwnd, uint flags);
+
+    [DllImport("gdi32.dll")]
+    private static extern uint GetPixel(IntPtr dc, int x, int y);
+
+    /// <summary>Reads only three empty tray-margin pixels, never an image or another window's contents.</summary>
+    public static bool TryReadTrayBackground(IntPtr taskbar, int dpi, out Color color)
+    {
+        color = default;
+        var notify = FindWindowEx(taskbar, IntPtr.Zero, "TrayNotifyWnd", null);
+        if (notify == IntPtr.Zero || !GetWindowRect(notify, out var bounds) || bounds.Bottom <= bounds.Top)
+            return false;
+
+        // The margin is left of the chevron/icons, away from their hover backgrounds.
+        int x = bounds.Left + (int)Math.Round(4f * dpi / 96f);
+        var points = new[] { 1, 2, 3 }.Select(n => new POINT(x, bounds.Top + (bounds.Bottom - bounds.Top) * n / 4)).ToArray();
+        if (points.Any(p => GetAncestor(WindowFromPoint(p), 2 /* GA_ROOT */) != taskbar))
+            return false; // Covered, auto-hidden, or dragged beneath our own overlay: retain the last valid tint.
+
+        IntPtr dc = GetDC(IntPtr.Zero);
+        if (dc == IntPtr.Zero) return false;
+        try
+        {
+            var pixels = points.Select(p => GetPixel(dc, p.X, p.Y)).ToArray();
+            if (pixels.Any(p => p == uint.MaxValue)) return false;
+            static int Median(IEnumerable<int> channel) => channel.Order().ElementAt(1);
+            color = Color.FromArgb(Median(pixels.Select(p => (int)(p & 255))),
+                Median(pixels.Select(p => (int)((p >> 8) & 255))), Median(pixels.Select(p => (int)((p >> 16) & 255))));
+            return true;
+        }
+        finally { ReleaseDC(IntPtr.Zero, dc); }
+    }
+
+    [DllImport("user32.dll")]
     public static extern uint GetDpiForWindow(IntPtr hwnd);
 
     [DllImport("user32.dll")]

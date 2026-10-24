@@ -122,6 +122,19 @@ internal static class Program
             ["maximum"] = new() { CpuTemp = 100, CpuLoad = 100, GpuTemp = 100, GpuLoad = 100, Cooler = new(CoolerState.Connected, 4000) },
         };
         using var overlay = new OverlayForm();
+        IntPtr taskbar = Native.FindWindow("Shell_TrayWnd", null);
+        int currentDpi = taskbar == IntPtr.Zero ? 96 : (int)Native.GetDpiForWindow(taskbar);
+        bool currentLight = Theme.SystemUsesLightTheme();
+        if (taskbar != IntPtr.Zero && TaskbarSurface.Read(taskbar, currentDpi, currentLight, null) is { } surface)
+        {
+            using var native = overlay.SnapshotOverlay(examples["normal"], currentDpi, currentLight, surface.Color);
+            native.Save(Path.Combine(directory, "overlay-native-taskbar.png"));
+            File.WriteAllText(Path.Combine(directory, "native-surface.json"), System.Text.Json.JsonSerializer.Serialize(new
+            {
+                Dpi = currentDpi, Color = surface.Color.ToArgb(), Bounds = surface.Bounds(native.Size, currentDpi),
+                CornerRadius = surface.Radius(currentDpi), TraySampleRead = Native.TryReadTrayBackground(taskbar, currentDpi, out _),
+            }));
+        }
         foreach (int dpi in new[] { 96, 144, 192 })
         foreach (bool light in new[] { false, true })
         foreach (var (name, reading) in examples)

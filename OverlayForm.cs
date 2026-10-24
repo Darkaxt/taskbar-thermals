@@ -63,6 +63,7 @@ internal sealed class OverlayForm : Form
     private Point _pos;
     private Font? _labelFont, _valueFont;
     private List<Block> _blocks = new();
+    private TaskbarSurface? _surface;
 
     private bool _light = Theme.SystemUsesLightTheme();
     private bool _hover;
@@ -433,7 +434,10 @@ internal sealed class OverlayForm : Form
         }
 
         var pos = new Point(_dragging ? _pos.X : ComputeX(tray), taskbar.Top + (taskbar.Height - _size.Height) / 2);
-        if (relayout || pos != _pos)
+        var surface = TaskbarSurface.Read(tray, dpi, _light, _surface);
+        bool surfaceChanged = surface != _surface;
+        _surface = surface;
+        if (relayout || pos != _pos || surfaceChanged)
         {
             _pos = pos;
             Render();
@@ -547,10 +551,19 @@ internal sealed class OverlayForm : Form
             // Alpha 1 is invisible but keeps the whole rectangle clickable (alpha 0 would be click-through).
             g.Clear(Color.FromArgb(1, 0, 0, 0));
 
+            if (_surface is not null)
+            {
+                using var background = new SolidBrush(_surface.Color);
+                using var outline = RoundedRect(_surface.Bounds(_size, _dpi), _surface.Radius(_dpi));
+                g.FillPath(background, outline);
+            }
+
             if (_hover || _dragging)
             {
                 float inset = Math.Max(Px(2f), (_size.Height - Px(40f)) / 2);
-                using var path = RoundedRect(new RectangleF(Px(1f), inset, _size.Width - Px(2f), _size.Height - 2 * inset), Px(5f));
+                using var path = _surface is not null
+                    ? RoundedRect(_surface.Bounds(_size, _dpi), _surface.Radius(_dpi))
+                    : RoundedRect(new RectangleF(Px(1f), inset, _size.Width - Px(2f), _size.Height - 2 * inset), Px(5f));
                 using var hoverBrush = new SolidBrush(_light ? Color.FromArgb(22, 0, 0, 0) : Color.FromArgb(24, 255, 255, 255));
                 g.FillPath(hoverBrush, path);
             }
@@ -578,11 +591,12 @@ internal sealed class OverlayForm : Form
     }
 
     /// <summary>Uses the actual overlay renderer for the explicit --preview-overlay diagnostic.</summary>
-    internal Bitmap SnapshotOverlay(Reading reading, int dpi, bool light)
+    internal Bitmap SnapshotOverlay(Reading reading, int dpi, bool light, Color? surfaceColor = null, bool segmented = true)
     {
         _reading = reading;
         _dpi = dpi;
         _light = light;
+        _surface = segmented ? new TaskbarSurface(surfaceColor ?? (light ? Theme.LightMode.Surface : Theme.Dark.Surface)) : null;
         _settings = new Settings { Metrics = Metrics.Defaults.ToList() };
         _taskbar = new Rectangle(0, 0, 1920, Px(48));
         Relayout();
