@@ -23,7 +23,7 @@ internal sealed class OverlayForm : Form
     private readonly SpikeLogger _spikes;
     private readonly ProcessSampler _processes = new();
     private readonly SampleHistory _history = new();
-    private readonly MinuteHistory _minutes = new(Path.Combine(AppPaths.Dir, "history.csv"));
+    private readonly MinuteHistory _minutes;
     private readonly StabilityMonitor _stability = new();
     private readonly SustainedAlert _cpuAlert = new();
     private readonly SustainedAlert _gpuAlert = new();
@@ -50,6 +50,9 @@ internal sealed class OverlayForm : Form
     private string? _balloonUrl;
 
     private Reading _reading = Reading.Empty;
+    private long? _sampleTimestamp;
+    private bool _sensorUpdatesPaused;
+    internal Reading DisplayedReading => _reading;
     private (float Value, DateTime At)? _maxCpu, _maxGpu;
 
     // Layout, in physical pixels.
@@ -73,8 +76,10 @@ internal sealed class OverlayForm : Form
     private static readonly StringFormat LeftFormat = MakeFormat(StringAlignment.Near);
     private static readonly StringFormat RightFormat = MakeFormat(StringAlignment.Far);
 
-    public OverlayForm()
+    public OverlayForm(bool previewOnly = false)
     {
+        if (previewOnly) _settings = new Settings { Metrics = Metrics.Defaults.ToList() };
+        _minutes = new(previewOnly ? null : Path.Combine(AppPaths.Dir, "history.csv"));
         FormBorderStyle = FormBorderStyle.None;
         ShowInTaskbar = false;
         StartPosition = FormStartPosition.Manual;
@@ -87,7 +92,11 @@ internal sealed class OverlayForm : Form
         _spikes = new SpikeLogger(() => _settings);
         _minutes.Load();
         _winEventProc = (_, _, _, _, _, _, _) => UpdatePlacement();
-        _placementTimer.Tick += (_, _) => UpdatePlacement();
+        _placementTimer.Tick += (_, _) =>
+        {
+            RefreshSensorFreshness(Stopwatch.GetTimestamp());
+            UpdatePlacement();
+        };
         _updateTimer.Tick += (_, _) => CheckForUpdates();
 
         _menu.Opening += (_, e) =>
@@ -176,7 +185,9 @@ internal sealed class OverlayForm : Form
         catch (Exception ex)
         {
             _sensorsFailed = true;
+            Post(OnSensorReadFailed);
             AppPaths.LogError(ex);
+            return;
         }
 
         do
@@ -184,22 +195,28 @@ internal sealed class OverlayForm : Form
             try
             {
                 var now = DateTime.Now;
+                long sampledAt = Stopwatch.GetTimestamp();
                 var reading = _sensors?.Read() ?? Reading.Empty;
                 _processes.Snapshot();
                 _spikes.Check(now, reading, () => _processes.Top(3));
-                Post(() => OnReading(reading, now));
+                Post(() => OnReading(reading, now, sampledAt));
             }
             catch (Exception ex)
             {
+                Post(OnSensorReadFailed);
                 AppPaths.LogError(ex);
             }
         }
         while (!_stop.WaitOne(_settings.IntervalMs));
     }
 
-    private void OnReading(Reading r, DateTime at)
+    internal void OnReading(Reading r, DateTime at, long sampledAt)
     {
         if (IsDisposed) return;
+        _sampleTimestamp = sampledAt;
+        _sensorUpdatesPaused = false;
+        _sensorsFailed = false;
+        if (RefreshSensorFreshness(Stopwatch.GetTimestamp())) return;
         r = r with { Cooler = _cooler.Current };
         _reading = r;
         _history.Add(at, r);
@@ -213,7 +230,6 @@ internal sealed class OverlayForm : Form
         if (_settings.AlertGpu && _gpuAlert.Check(at, r.GpuTemp, _settings.AlertGpuTemp, _settings.AlertSeconds))
             Notify(L.GpuHotTitle, L.HotText("GPU", r.GpuTemp!.Value, _settings.AlertGpuTemp, _settings.AlertSeconds), ToolTipIcon.Warning);
 
-        _tray.Text = $"Taskbar Thermals\nCPU {TempText(r.CpuTemp)}  {LoadText(r.CpuLoad)}\nGPU {TempText(r.GpuTemp)}  {LoadText(r.GpuLoad)}";
         UpdateTooltip();
         Render();
         RefreshPanel();
@@ -221,9 +237,45 @@ internal sealed class OverlayForm : Form
 
     private static string TempText(float? t) => t is float v ? $"{v:0}°C" : "--";
 
-    private void OnCoolerChanged()
+    /// <summary>Measurement-age monitoring only: never cancels, kills or restarts the sensor worker.</summary>
+    internal bool RefreshSensorFreshness(long now)
     {
-        _reading = _reading with { Cooler = _cooler.Current };
+        if (_sampleTimestamp is long sampled && !_sensorUpdatesPaused
+            && Stopwatch.GetElapsedTime(sampled, now).TotalMilliseconds > 3L * _settings.IntervalMs)
+        {
+            _sensorUpdatesPaused = true;
+            InvalidateSensorReading();
+        }
+        return _sensorUpdatesPaused;
+    }
+
+    internal void OnSensorReadFailed()
+    {
+        if (IsDisposed) return;
+        _sensorsFailed = true;
+        _sensorUpdatesPaused = false;
+        _sampleTimestamp = null;
+        InvalidateSensorReading();
+    }
+
+    private void InvalidateSensorReading()
+    {
+        _reading = Reading.Empty with { Cooler = _reading.Cooler };
+        var now = DateTime.Now;
+        _history.Add(now, _reading); // A missing point rather than a fictitious flat temperature trace.
+        _cpuAlert.Check(now, null, _settings.AlertCpuTemp, _settings.AlertSeconds);
+        _gpuAlert.Check(now, null, _settings.AlertGpuTemp, _settings.AlertSeconds);
+        UpdateTooltip();
+        Render();
+        RefreshPanel();
+    }
+
+    private void OnCoolerChanged() => OnCoolerReading(_cooler.Current);
+
+    internal void OnCoolerReading(CoolerSnapshot cooler)
+    {
+        RefreshSensorFreshness(Stopwatch.GetTimestamp());
+        _reading = _reading with { Cooler = cooler };
         UpdateTooltip();
         Render();
         RefreshPanel();
@@ -232,6 +284,11 @@ internal sealed class OverlayForm : Form
     private void UpdateTooltip()
     {
         string text = $"CPU  {TempText(_reading.CpuTemp)}  {LoadText(_reading.CpuLoad)}\nGPU  {TempText(_reading.GpuTemp)}  {LoadText(_reading.GpuLoad)}\nBS2 Pro  {L.CoolerDetail(_reading.Cooler)}";
+        string? status = _sensorUpdatesPaused ? L.SensorUpdatesPaused : _sensorsFailed ? L.SensorUpdatesUnavailable : null;
+        if (status is not null) text += "\n" + status;
+        _tray.Text = status is null
+            ? $"Taskbar Thermals\nCPU {TempText(_reading.CpuTemp)}  {LoadText(_reading.CpuLoad)}\nGPU {TempText(_reading.GpuTemp)}  {LoadText(_reading.GpuLoad)}"
+            : $"Taskbar Thermals\n{status}";
         _tooltip.SetToolTip(this, text);
         AccessibleDescription = text;
     }

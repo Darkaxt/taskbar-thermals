@@ -6,6 +6,8 @@ The cooling-base reading comes from [THRM](https://github.com/TIANLI0/THRM)'s lo
 
 Fan percentage means measured RPM divided by 4,000 RPM: 3,300 RPM displays **83%**. It is not airflow or electrical duty cycle. Hover or open the details panel to see RPM and connection information. A stopped fan shows 0%; unavailable readings show `--%`. Other THRM-connected cooler models are deliberately not presented as this BS2 Pro.
 
+If sensor sampling pauses for more than three configured update intervals, CPU/GPU values change to `--` and the tooltip identifies the stale readings. Fresh samples restore the values automatically; independently received cooler readings continue. This monitors measurement age without cancelling or restarting sensor operations.
+
 Space Station controller coexistence is a separate THRM/device configuration step; simply starting two cooler-control programs can cause competing commands. Keep your controller profiles and use a reviewed cooler-only coexistence setup. Disabling the standalone LibreHardwareMonitor application does not require removing the shared sensor library or PawnIO driver.
 
 Live CPU and GPU temperature and usage right on the Windows 11 taskbar — plus RAM, network and disk if you want them, a 24-hour history panel, temperature-spike logging and a hardware-error watcher for when you're tuning undervolts or BIOS settings.
@@ -45,6 +47,8 @@ Grab the latest build from [Releases](https://github.com/Darkaxt/taskbar-thermal
 | `TaskbarThermals-standalone.exe` | ~65 MB | nothing |
 
 Put the exe wherever you like and run it. It asks for administrator rights (needed for CPU temperature). Right-click the overlay → **Start with Windows** to launch it at logon without a UAC prompt. The exe isn't code-signed, so Windows SmartScreen may warn on first run: *More info → Run anyway*.
+
+Startup is opt-in. Toggle **Start with Windows** off to remove its `TaskbarThermals` scheduled task. For an installation with a dedicated runtime directory, launch with `--runtime-directory <absolute-folder>`; elevated relaunch and startup registration retain that directory for application/child-process scratch. A standalone bundle may use the framework's initial extraction cache before the application configures its own environment.
 
 ## Build from source
 

@@ -1,5 +1,10 @@
 # Changelog
 
+## 1.2.2
+
+- Clear stale CPU/GPU readings when sampling pauses or fails, while keeping independently received cooler telemetry. Explain paused updates in the tooltip and restore values when real samples resume.
+- Preserve an explicitly selected runtime directory through elevated relaunch and Windows startup. Use the logon event directly, with no arbitrary startup delay.
+
 ## 1.2.1
 
 - Match StartAllBack's separated tray with a rounded monitor background, keeping unused taskbar areas transparent.

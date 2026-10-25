@@ -8,9 +8,21 @@ namespace TaskbarThermals;
 
 internal static class Program
 {
+    internal static string? RuntimeDirectory { get; private set; }
+
     [STAThread]
     private static int Main(string[] args)
     {
+        int runtimeArgument = Array.IndexOf(args, "--runtime-directory");
+        if (runtimeArgument >= 0)
+        {
+            if (runtimeArgument + 1 >= args.Length) return 2;
+            RuntimeDirectory = Path.GetFullPath(args[runtimeArgument + 1]);
+            Directory.CreateDirectory(RuntimeDirectory);
+            Environment.SetEnvironmentVariable("TEMP", RuntimeDirectory);
+            Environment.SetEnvironmentVariable("TMP", RuntimeDirectory);
+            Environment.SetEnvironmentVariable("DOTNET_BUNDLE_EXTRACT_BASE_DIR", Path.Combine(RuntimeDirectory, "bundle"));
+        }
         ApplicationConfiguration.Initialize();
 
         switch (args.FirstOrDefault())
@@ -30,7 +42,7 @@ internal static class Program
         }
 
         // CPU temperature needs admin. If the user declines UAC we still run, just without CPU temp.
-        if (!IsElevated() && !args.Contains("--no-elevate") && TryRelaunchElevated())
+        if (!IsElevated() && !args.Contains("--no-elevate") && TryRelaunchElevated(args))
             return 0;
 
         Mutex mutex;
@@ -54,11 +66,13 @@ internal static class Program
     private static bool IsElevated() =>
         new WindowsPrincipal(WindowsIdentity.GetCurrent()).IsInRole(WindowsBuiltInRole.Administrator);
 
-    private static bool TryRelaunchElevated()
+    private static bool TryRelaunchElevated(string[] args)
     {
         try
         {
-            Process.Start(new ProcessStartInfo(Environment.ProcessPath!) { UseShellExecute = true, Verb = "runas" });
+            var start = new ProcessStartInfo(Environment.ProcessPath!) { UseShellExecute = true, Verb = "runas" };
+            foreach (string argument in args) start.ArgumentList.Add(argument);
+            Process.Start(start);
             return true;
         }
         catch (Win32Exception)
@@ -121,7 +135,7 @@ internal static class Program
             ["unavailable"] = new() { CpuTemp = 67, CpuLoad = 28, GpuTemp = 47, GpuLoad = 1 },
             ["maximum"] = new() { CpuTemp = 100, CpuLoad = 100, GpuTemp = 100, GpuLoad = 100, Cooler = new(CoolerState.Connected, 4000) },
         };
-        using var overlay = new OverlayForm();
+        using var overlay = new OverlayForm(previewOnly: true);
         IntPtr taskbar = Native.FindWindow("Shell_TrayWnd", null);
         int currentDpi = taskbar == IntPtr.Zero ? 96 : (int)Native.GetDpiForWindow(taskbar);
         bool currentLight = Theme.SystemUsesLightTheme();

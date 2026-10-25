@@ -25,6 +25,9 @@ internal static class L
 
     private static string T(string en, string tr) => Turkish ? tr : en;
 
+    public static string SensorUpdatesPaused => T("Sensor updates paused — readings are stale", "Sensör güncellemeleri durakladı — ölçümler güncel değil");
+    public static string SensorUpdatesUnavailable => T("Sensor readings unavailable", "Sensör ölçümleri kullanılamıyor");
+
     // ---------------------------------------------------------------- formatting
 
     public static string Percent(float v) => Turkish ? $"%{v:0}" : $"{v:0}%";

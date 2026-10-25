@@ -21,7 +21,24 @@ internal static class Startup
     {
         string exe = Environment.ProcessPath!;
         string user = WindowsIdentity.GetCurrent().Name;
-        string xml = $"""
+        string xml = BuildTaskXml(exe, user, Program.RuntimeDirectory);
+
+        string tmp = Path.Combine(Path.GetTempPath(), $"taskbar-thermals-task-{Guid.NewGuid():N}.xml");
+        try
+        {
+            File.WriteAllText(tmp, xml, Encoding.Unicode);
+            return Schtasks("/Create", "/TN", TaskName, "/XML", tmp, "/F") == 0;
+        }
+        finally
+        {
+            File.Delete(tmp);
+        }
+    }
+
+    internal static string BuildTaskXml(string exe, string user, string? runtimeDirectory)
+    {
+        string arguments = runtimeDirectory is null ? "" : $"--runtime-directory \"{runtimeDirectory}\"";
+        return $"""
             <?xml version="1.0" encoding="UTF-16"?>
             <Task version="1.2" xmlns="http://schemas.microsoft.com/windows/2004/02/mit/task">
               <RegistrationInfo><Description>Taskbar Thermals - CPU/GPU temperature and usage on the taskbar</Description></RegistrationInfo>
@@ -29,7 +46,6 @@ internal static class Startup
                 <LogonTrigger>
                   <Enabled>true</Enabled>
                   <UserId>{SecurityElement.Escape(user)}</UserId>
-                  <Delay>PT5S</Delay>
                 </LogonTrigger>
               </Triggers>
               <Principals>
@@ -57,22 +73,12 @@ internal static class Startup
               <Actions Context="Author">
                 <Exec>
                   <Command>{SecurityElement.Escape(exe)}</Command>
+                  <Arguments>{SecurityElement.Escape(arguments)}</Arguments>
                   <WorkingDirectory>{SecurityElement.Escape(Path.GetDirectoryName(exe))}</WorkingDirectory>
                 </Exec>
               </Actions>
             </Task>
             """;
-
-        string tmp = Path.Combine(Path.GetTempPath(), $"taskbar-thermals-task-{Guid.NewGuid():N}.xml");
-        try
-        {
-            File.WriteAllText(tmp, xml, Encoding.Unicode);
-            return Schtasks("/Create", "/TN", TaskName, "/XML", tmp, "/F") == 0;
-        }
-        finally
-        {
-            File.Delete(tmp);
-        }
     }
 
     private static int Schtasks(params string[] args)
