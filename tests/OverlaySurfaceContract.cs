@@ -5,6 +5,16 @@ internal static class OverlaySurfaceContract
 {
     public static void Run()
     {
+        var tray = new Rectangle(4016, 2088, 1104, 72);
+        foreach (var point in new[] { new Point(4022, 2106), new Point(4034, 2124), new Point(4800, 2124) })
+            if (Native.CanSampleTrayBackground(tray, point, overflowVisible: false))
+                throw new Exception("Tray hover/pressed backgrounds must not become the overlay's normal tint.");
+        if (Native.CanSampleTrayBackground(tray, new Point(3500, 2000), overflowVisible: true))
+            throw new Exception("Open overflow must retain the tint even after the pointer leaves the tray.");
+        if (!Native.CanSampleTrayBackground(tray, new Point(3500, 2000), overflowVisible: false))
+            throw new Exception("Normal tint sampling must resume when tray interaction ends.");
+        if (Native.CanSampleTrayBackground(Rectangle.Empty, Point.Empty, overflowVisible: false))
+            throw new Exception("An unavailable tray cannot supply a normal tint.");
         Exception? failure = null;
         var thread = new Thread(() =>
         {

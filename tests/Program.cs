@@ -4,6 +4,19 @@ using System.Text;
 using System.Text.Json;
 using System.Threading.Channels;
 
+if (args.FirstOrDefault() == "--observe-tray")
+{
+    TrayBackgroundObserver.Run(args[1]);
+    return;
+}
+
+if (args.FirstOrDefault() == "--surface")
+{
+    OverlaySurfaceContract.Run();
+    Console.WriteLine("PASS: tray sampling and actual overlay rendering contracts");
+    return;
+}
+
 if (args.FirstOrDefault() == "--live")
 {
     using var stop = new CancellationTokenSource();

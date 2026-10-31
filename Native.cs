@@ -75,15 +75,33 @@ internal static class Native
     [DllImport("gdi32.dll")]
     private static extern uint GetPixel(IntPtr dc, int x, int y);
 
+    internal static bool CanSampleTrayBackground(Rectangle bounds, Point cursor, bool overflowVisible) =>
+        bounds.Width > 0 && bounds.Height > 0 && !overflowVisible && !bounds.Contains(cursor);
+
+    [DllImport("user32.dll")]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    internal static extern bool GetCursorPos(out POINT point);
+
+    [DllImport("user32.dll")]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    private static extern bool IsWindowVisible(IntPtr hwnd);
+
+    internal static bool TrayOverflowVisible =>
+        IsWindowVisible(FindWindow("NotifyIconOverflowWindow", null)) ||
+        IsWindowVisible(FindWindow("TopLevelWindowForOverflowXamlIsland", null));
+
     /// <summary>Reads only three empty tray-margin pixels, never an image or another window's contents.</summary>
     public static bool TryReadTrayBackground(IntPtr taskbar, int dpi, out Color color)
     {
         color = default;
         var notify = FindWindowEx(taskbar, IntPtr.Zero, "TrayNotifyWnd", null);
-        if (notify == IntPtr.Zero || !GetWindowRect(notify, out var bounds) || bounds.Bottom <= bounds.Top)
+        if (notify == IntPtr.Zero || !GetWindowRect(notify, out var bounds) ||
+            !GetCursorPos(out var cursor) ||
+            !CanSampleTrayBackground(bounds.ToRectangle(), new Point(cursor.X, cursor.Y), TrayOverflowVisible))
             return false;
 
-        // The margin is left of the chevron/icons, away from their hover backgrounds.
+        // StartAllBack extends the chevron's hit area through this apparent margin.
+        // Read it only while idle; Read's caller retains its last normal tint during interaction.
         int x = bounds.Left + (int)Math.Round(4f * dpi / 96f);
         var points = new[] { 1, 2, 3 }.Select(n => new POINT(x, bounds.Top + (bounds.Bottom - bounds.Top) * n / 4)).ToArray();
         if (points.Any(p => GetAncestor(WindowFromPoint(p), 2 /* GA_ROOT */) != taskbar))

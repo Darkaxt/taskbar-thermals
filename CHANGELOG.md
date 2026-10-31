@@ -1,5 +1,10 @@
 # Changelog
 
+## 1.2.3
+
+- Keep the normal taskbar background tint while hovering over the system tray or opening its hidden-icons panel. StartAllBack's arrow highlight can no longer become the monitor's background.
+- Resume native tint sampling after the interaction ends, preserving the existing rounded surface, transparent margins, live metrics and settings.
+
 ## 1.2.2
 
 - Clear stale CPU/GPU readings when sampling pauses or fails, while keeping independently received cooler telemetry. Explain paused updates in the tooltip and restore values when real samples resume.

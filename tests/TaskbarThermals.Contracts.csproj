@@ -10,6 +10,7 @@
   <ItemGroup>
     <Compile Include="Program.cs" />
     <Compile Include="OverlaySurfaceContract.cs" />
+    <Compile Include="TrayBackgroundObserver.cs" />
     <Compile Include="SensorFreshnessContract.cs" />
     <ProjectReference Include="../TaskbarThermals.csproj" />
   </ItemGroup>
