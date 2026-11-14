@@ -15,10 +15,10 @@
     <RuntimeIdentifier>win-x64</RuntimeIdentifier>
     <SelfContained>false</SelfContained>
     <SatelliteResourceLanguages>en</SatelliteResourceLanguages>
-    <Version>1.2.3</Version>
+    <Version>1.2.4</Version>
     <Product>Taskbar Thermals</Product>
     <AssemblyTitle>Taskbar Thermals</AssemblyTitle>
-    <Description>CPU/GPU taskbar icons with temperature, usage and Flydigi BS2 Pro fan telemetry</Description>
+    <Description>CPU/GPU taskbar icons with temperature, usage and Flydigi BS2 Pro / BS3 Pro fan telemetry</Description>
     <Authors>Quenchh;Darkaxt</Authors>
     <Copyright>Copyright (c) 2026 Quenchh</Copyright>
   </PropertyGroup>

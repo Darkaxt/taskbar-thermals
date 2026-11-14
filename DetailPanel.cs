@@ -676,7 +676,7 @@ internal sealed class DetailPanel : Form
 
     private float DrawCooler(Graphics g, float y, CoolerSnapshot cooler)
     {
-        y = SectionTitle(g, y, L.CoolerTitle);
+        y = SectionTitle(g, y, L.CoolerTitle(cooler));
         TextAt(g, L.CoolerDetail(cooler), _fText!, _theme.Text, Pf(PadDip), y + Ascent(_fText!));
         if (cooler.Rpm is not null)
         {

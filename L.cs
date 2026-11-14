@@ -197,7 +197,7 @@ internal static class L
         Device.Ram => "RAM",
         Device.Net => T("Network", "Ağ"),
         Device.Disk => T("Disk", "Disk"),
-        Device.Cooler => "BS2 Pro",
+        Device.Cooler => T("Cooling base", "Soğutucu"),
         _ => d.ToString().ToUpperInvariant(),
     };
     public static string FontSize => T("Font size", "Yazı boyutu");
@@ -223,13 +223,20 @@ internal static class L
     public static string ThresholdOrder => T("The warning threshold must be lower than the critical one.", "Sarı eşik, kırmızı eşikten küçük olmalı.");
     public static string PickOneMetric => T("Pick at least one value to show on the taskbar.", "Görev çubuğunda en az bir değer seç.");
 
-    public static string CoolerTitle => T("Cooling base · BS2 Pro", "Soğutucu · BS2 Pro");
+    public static string CoolerName(CoolerSnapshot cooler) => cooler.Model switch
+    {
+        CoolerModel.Bs2Pro => "BS2 Pro",
+        CoolerModel.Bs3Pro => "BS3 Pro",
+        _ => T("Cooling base", "Soğutucu"),
+    };
+    public static string CoolerTitle(CoolerSnapshot cooler) => cooler.Model == CoolerModel.Unknown
+        ? CoolerName(cooler) : $"{T("Cooling base", "Soğutucu")} · {CoolerName(cooler)}";
     public static string CoolerStatus(CoolerState state) => state switch
     {
         CoolerState.Connected => T("Connected through THRM", "THRM üzerinden bağlı"),
-        CoolerState.Disconnected => T("Connect the BS2 Pro in THRM", "BS2 Pro'yu THRM'de bağlayın"),
+        CoolerState.Disconnected => T("Connect the cooling base in THRM", "Soğutucuyu THRM'de bağlayın"),
         CoolerState.WaitingForReading => T("Waiting for fan reading", "Fan verisi bekleniyor"),
-        CoolerState.DifferentModel => T("THRM is connected to another cooler", "THRM başka bir soğutucuya bağlı"),
+        CoolerState.DifferentModel => T("This cooling base is not supported", "Bu soğutucu desteklenmiyor"),
         CoolerState.InvalidReading => T("Fan reading unavailable", "Fan verisi kullanılamıyor"),
         _ => T("Start THRM to read fan speed", "Fan hızını okumak için THRM'yi başlatın"),
     };

@@ -85,7 +85,7 @@ internal sealed class OverlayForm : Form
         StartPosition = FormStartPosition.Manual;
         AutoScaleMode = AutoScaleMode.None;
         Text = "Taskbar Thermals";
-        AccessibleName = "CPU, GPU and BS2 Pro monitor";
+        AccessibleName = "CPU, GPU and cooling base monitor";
         AccessibleRole = AccessibleRole.Indicator;
         L.Apply(_settings.Language);
 
@@ -283,7 +283,7 @@ internal sealed class OverlayForm : Form
 
     private void UpdateTooltip()
     {
-        string text = $"CPU  {TempText(_reading.CpuTemp)}  {LoadText(_reading.CpuLoad)}\nGPU  {TempText(_reading.GpuTemp)}  {LoadText(_reading.GpuLoad)}\nBS2 Pro  {L.CoolerDetail(_reading.Cooler)}";
+        string text = $"CPU  {TempText(_reading.CpuTemp)}  {LoadText(_reading.CpuLoad)}\nGPU  {TempText(_reading.GpuTemp)}  {LoadText(_reading.GpuLoad)}\n{L.CoolerName(_reading.Cooler)}  {L.CoolerDetail(_reading.Cooler)}";
         string? status = _sensorUpdatesPaused ? L.SensorUpdatesPaused : _sensorsFailed ? L.SensorUpdatesUnavailable : null;
         if (status is not null) text += "\n" + status;
         _tray.Text = status is null

@@ -3,8 +3,9 @@ using System.Text.Json;
 namespace TaskbarThermals;
 
 internal enum CoolerState { WaitingForThrm, Disconnected, WaitingForReading, Connected, DifferentModel, InvalidReading }
+internal enum CoolerModel { Unknown, Bs2Pro, Bs3Pro }
 
-internal sealed record CoolerSnapshot(CoolerState State, int? Rpm = null, DateTimeOffset? UpdatedAt = null)
+internal sealed record CoolerSnapshot(CoolerState State, int? Rpm = null, DateTimeOffset? UpdatedAt = null, CoolerModel Model = CoolerModel.Unknown)
 {
     public const int MaximumRpm = 4000;
     public int? Percent => Rpm is int rpm ? (int)Math.Round(rpm * 100.0 / MaximumRpm, MidpointRounding.AwayFromZero) : null;
@@ -14,6 +15,7 @@ internal sealed record CoolerSnapshot(CoolerState State, int? Rpm = null, DateTi
 internal sealed class CoolerTelemetry
 {
     private bool _connected, _supported;
+    private CoolerModel _model;
     public CoolerSnapshot Current { get; private set; } = CoolerSnapshot.Waiting;
 
     public CoolerSnapshot Accept(string frame)
@@ -27,8 +29,8 @@ internal sealed class CoolerTelemetry
                 return Current;
             if (!data.TryGetProperty("connected", out _)) return Current;
             _connected = IsTrue(data, "connected");
-            _supported = IsBs2Pro(data);
-            Current = new(_connected ? (_supported ? CoolerState.WaitingForReading : CoolerState.DifferentModel) : CoolerState.Disconnected);
+            SetModel(data);
+            Current = new(_connected ? (_supported ? CoolerState.WaitingForReading : CoolerState.DifferentModel) : CoolerState.Disconnected, Model: _connected ? _model : CoolerModel.Unknown);
             if (_connected && _supported && data.TryGetProperty("currentData", out var fan)) ReadFan(fan);
         }
         else if (IsTrue(root, "isEvent") && root.TryGetProperty("type", out var type) && type.ValueKind == JsonValueKind.String)
@@ -42,12 +44,12 @@ internal sealed class CoolerTelemetry
                     break;
                 case "device-connected":
                     _connected = true;
-                    _supported = root.TryGetProperty("data", out var device) && IsBs2Pro(device);
-                    Current = new(_supported ? CoolerState.WaitingForReading : CoolerState.DifferentModel);
+                    SetModel(root.TryGetProperty("data", out var device) ? device : default);
+                    Current = new(_supported ? CoolerState.WaitingForReading : CoolerState.DifferentModel, Model: _model);
                     break;
                 case "fan-data-update" when _connected && _supported:
                     if (root.TryGetProperty("data", out var fan)) ReadFan(fan);
-                    else Current = new(CoolerState.InvalidReading);
+                    else Current = new(CoolerState.InvalidReading, Model: _model);
                     break;
             }
         }
@@ -57,6 +59,7 @@ internal sealed class CoolerTelemetry
     public CoolerSnapshot PipeClosed()
     {
         _connected = _supported = false;
+        _model = CoolerModel.Unknown;
         return Current = CoolerSnapshot.Waiting;
     }
 
@@ -64,13 +67,23 @@ internal sealed class CoolerTelemetry
     {
         if (data.ValueKind == JsonValueKind.Object && data.TryGetProperty("currentRpm", out var value)
             && value.ValueKind == JsonValueKind.Number && value.TryGetInt32(out int rpm) && rpm is >= 0 and <= CoolerSnapshot.MaximumRpm)
-            Current = new(CoolerState.Connected, rpm, DateTimeOffset.UtcNow);
-        else Current = new(CoolerState.InvalidReading);
+            Current = new(CoolerState.Connected, rpm, DateTimeOffset.UtcNow, _model);
+        else Current = new(CoolerState.InvalidReading, Model: _model);
     }
 
-    private static bool IsBs2Pro(JsonElement data) => data.ValueKind == JsonValueKind.Object
-        && data.TryGetProperty("productId", out var id) && id.ValueKind == JsonValueKind.String
-        && string.Equals(id.GetString(), "0x1002", StringComparison.OrdinalIgnoreCase);
+    private void SetModel(JsonElement data)
+    {
+        // THRM's HID product ID is the identity boundary; display names are not identifiers.
+        _model = data.ValueKind == JsonValueKind.Object
+            && data.TryGetProperty("productId", out var id) && id.ValueKind == JsonValueKind.String
+            ? id.GetString()?.ToLowerInvariant() switch
+            {
+                "0x1002" => CoolerModel.Bs2Pro,
+                "0x1004" => CoolerModel.Bs3Pro,
+                _ => CoolerModel.Unknown,
+            } : CoolerModel.Unknown;
+        _supported = _model != CoolerModel.Unknown;
+    }
 
     private static bool IsTrue(JsonElement data, string name) =>
         data.TryGetProperty(name, out var value) && value.ValueKind == JsonValueKind.True;

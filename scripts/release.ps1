@@ -46,7 +46,7 @@ try{
     if(-not $match.Success){throw 'Missing release notes'}
     $notes=@($match.Groups[1].Value.Trim(),'','### Downloads','','| File | Size | Needs |','|---|---|---|')+$rows+@(
         '',"CPU temperature uses administrator rights and the existing [PawnIO](https://pawnio.eu) driver. The executables are unsigned.",
-        '',"BS2 Pro telemetry uses THRM's local read-only observer connection. This software release does not claim verification of Vader controller inputs.",
+        '',"BS2 Pro and BS3 Pro telemetry uses THRM's local read-only observer connection. This software release does not claim verification of Vader controller inputs.",
         '',"Built by GitHub Actions from ``$Tag``. SHA256SUMS.txt records both executable hashes."
     )
     $notesPath=Join-Path $output 'release-notes.md'

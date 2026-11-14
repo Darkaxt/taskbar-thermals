@@ -1,5 +1,10 @@
 # Changelog
 
+## 1.2.4
+
+- Read live fan speed from both BS2 Pro and BS3 Pro through THRM, including switching between the two office fanpads without restarting the widget. Both Pro models use measured RPM divided by 4,000 RPM.
+- Show the connected model in hover/details instead of labeling every fanpad BS2 Pro. Disconnects and unsupported models still clear the previous reading; fan control and cooler settings remain exclusively in THRM.
+
 ## 1.2.3
 
 - Keep the normal taskbar background tint while hovering over the system tray or opening its hidden-icons panel. StartAllBack's arrow highlight can no longer become the monitor's background.

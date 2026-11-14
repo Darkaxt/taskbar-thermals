@@ -1,10 +1,10 @@
 # Taskbar Thermals
 
-This fork adds Windows-style CPU/GPU icons and a **Flydigi BS2 Pro fan-speed percentage** to [Quenchh's Taskbar Thermals](https://github.com/Quenchh/taskbar-thermals). Temperature and usage remain visible; power is optional and hidden by default.
+This fork adds Windows-style CPU/GPU icons and a **Flydigi BS2 Pro / BS3 Pro fan-speed percentage** to [Quenchh's Taskbar Thermals](https://github.com/Quenchh/taskbar-thermals). Temperature and usage remain visible; power is optional and hidden by default.
 
-The cooling-base reading comes from [THRM](https://github.com/TIANLI0/THRM)'s local Windows named pipe. Run THRM and connect the BS2 Pro there. This app observes measured RPM and never opens the cooler or sends fan-control commands. THRM already has an English interface.
+The cooling-base reading comes from [THRM](https://github.com/TIANLI0/THRM)'s local Windows named pipe. Run THRM and connect either Pro model there. This app observes measured RPM and never opens the cooler or sends fan-control commands. THRM already has an English interface.
 
-Fan percentage means measured RPM divided by 4,000 RPM: 3,300 RPM displays **83%**. It is not airflow or electrical duty cycle. Hover or open the details panel to see RPM and connection information. A stopped fan shows 0%; unavailable readings show `--%`. Other THRM-connected cooler models are deliberately not presented as this BS2 Pro.
+Fan percentage means measured RPM divided by 4,000 RPM for both Pro models: 3,300 RPM displays **83%**. It is not airflow or electrical duty cycle. Hover or open the details panel to see the connected model, RPM and connection information. The model and reading follow live office fanpad switches. A stopped fan shows 0%; unavailable readings show `--%`. Other THRM-connected cooler models remain unsupported rather than inherit the Pro percentage scale.
 
 If sensor sampling pauses for more than three configured update intervals, CPU/GPU values change to `--` and the tooltip identifies the stale readings. Fresh samples restore the values automatically; independently received cooler readings continue. This monitors measurement age without cancelling or restarting sensor operations.
 

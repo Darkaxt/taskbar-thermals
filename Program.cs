@@ -131,7 +131,8 @@ internal static class Program
         L.Apply("en");
         var examples = new Dictionary<string, Reading>
         {
-            ["normal"] = new() { CpuTemp = 67, CpuLoad = 28, GpuTemp = 47, GpuLoad = 1, Cooler = new(CoolerState.Connected, 3300) },
+            ["normal"] = new() { CpuTemp = 67, CpuLoad = 28, GpuTemp = 47, GpuLoad = 1, Cooler = new(CoolerState.Connected, 3300, Model: CoolerModel.Bs2Pro) },
+            ["bs3-pro"] = new() { CpuTemp = 67, CpuLoad = 28, GpuTemp = 47, GpuLoad = 1, Cooler = new(CoolerState.Connected, 3500, Model: CoolerModel.Bs3Pro) },
             ["unavailable"] = new() { CpuTemp = 67, CpuLoad = 28, GpuTemp = 47, GpuLoad = 1 },
             ["maximum"] = new() { CpuTemp = 100, CpuLoad = 100, GpuTemp = 100, GpuLoad = 100, Cooler = new(CoolerState.Connected, 4000) },
         };
@@ -161,7 +162,7 @@ internal static class Program
             bitmap.Save(Path.Combine(directory, $"overlay-{dpi}-{(light ? "light" : "dark")}-{name}.png"));
         }
         foreach (var theme in new[] { Theme.Dark, Theme.LightMode })
-        foreach (var name in new[] { "normal", "unavailable" })
+        foreach (var name in new[] { "normal", "bs3-pro", "unavailable" })
         {
             Theme.Override = theme;
             using var panel = new DetailPanel();

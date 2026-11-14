@@ -30,7 +30,8 @@ if (args.FirstOrDefault() == "--live")
         for (int i = 0; i < 3; i++)
         {
             var sample = await samples.Reader.ReadAsync();
-            if (sample.State != CoolerState.Connected) throw new Exception($"Live THRM did not report the BS2 Pro: {sample.State}");
+            if (sample.State == CoolerState.WaitingForReading) { i--; continue; }
+            if (sample.State != CoolerState.Connected) throw new Exception($"Live THRM did not report a supported Pro cooling base: {sample.State}");
             readings.Add(sample);
         }
         string json = JsonSerializer.Serialize(readings, new JsonSerializerOptions { WriteIndented = true });
@@ -52,6 +53,7 @@ var telemetry = new CoolerTelemetry();
 telemetry.Accept(connected);
 Equal<int?>(3300, telemetry.Current.Rpm, "Use measured RPM rather than commanded target");
 Equal<int?>(83, telemetry.Current.Percent, "3300 of 4000 rounds to 83 percent");
+Equal(CoolerModel.Bs2Pro, telemetry.Current.Model, "BS2 Pro keeps its actual identity");
 telemetry.Accept("""{"isEvent":true,"type":"fan-data-update","data":{"currentRpm":0,"targetRpm":1700}}""");
 Equal<int?>(0, telemetry.Current.Percent, "A stopped fan is a valid zero");
 telemetry.Accept("""{"isEvent":true,"type":"device-disconnected","data":null}""");
@@ -66,8 +68,28 @@ telemetry.PipeClosed();
 Equal<int?>(null, telemetry.Current.Rpm, "THRM exit clears the last reading");
 telemetry.Accept("""{"isResponse":true,"success":true,"data":{"connected":false,"productId":"0x1002","currentData":{"currentRpm":3300}}}""");
 Equal<int?>(null, telemetry.Current.Rpm, "A disconnected bootstrap ignores cached measurements");
-telemetry.Accept("""{"isResponse":true,"success":true,"data":{"connected":true,"productId":"0x1004","currentData":{"currentRpm":3300}}}""");
-Equal(CoolerState.DifferentModel, telemetry.Current.State, "Do not present another cooler as the user's BS2 Pro");
+const string bs3Connected = """{"isResponse":true,"success":true,"data":{"connected":true,"productId":"0x1004","model":"BS3PRO","currentData":{"currentRpm":3500,"targetRpm":3454}}}""";
+telemetry.Accept(bs3Connected);
+Equal(CoolerState.Connected, telemetry.Current.State, "The office BS3 Pro is supported");
+Equal(CoolerModel.Bs3Pro, telemetry.Current.Model, "BS3 Pro is not mislabeled as BS2 Pro");
+Equal<int?>(3500, telemetry.Current.Rpm, "BS3 Pro uses measured rather than target or cached settings RPM");
+Equal<int?>(88, telemetry.Current.Percent, "BS3 Pro also uses its rated 4000 RPM denominator");
+L.Apply("en");
+Equal("BS3 Pro", L.CoolerName(telemetry.Current), "Hover names the connected BS3 Pro");
+Equal("Cooling base · BS3 Pro", L.CoolerTitle(telemetry.Current), "Details names the connected BS3 Pro");
+Equal(true, L.CoolerDetail(telemetry.Current).Contains("4,000"), "Details preserves the rated denominator");
+telemetry.Accept("""{"isEvent":true,"type":"device-connected","data":{"productId":"0X1002","model":"BS2PRO"}}""");
+Equal(CoolerModel.Bs2Pro, telemetry.Current.Model, "A live office switch updates identity case-insensitively");
+Equal<int?>(null, telemetry.Current.Rpm, "A model switch clears the other fanpad's measurement");
+telemetry.Accept("""{"isEvent":true,"type":"device-connected","data":{"productId":"0x1004","model":"BS3PRO"}}""");
+telemetry.Accept("""{"isEvent":true,"type":"fan-data-update","data":{"currentRpm":0}}""");
+Equal<int?>(0, telemetry.Current.Percent, "Stopped BS3 Pro is a valid zero");
+telemetry.Accept("""{"isEvent":true,"type":"device-connected","data":{"productId":"0x1003","model":"BS3"}}""");
+Equal(CoolerState.DifferentModel, telemetry.Current.State, "Non-Pro models are not assigned a Pro RPM scale");
+telemetry.Accept("""{"isEvent":true,"type":"fan-data-update","data":{"currentRpm":3000}}""");
+Equal<int?>(null, telemetry.Current.Rpm, "Unsupported-model frames cannot resurrect the previous reading");
+telemetry.Accept("""{"isResponse":true,"success":true,"data":{"connected":true,"productId":"0xffff","model":"BS3PRO","currentData":{"currentRpm":3300}}}""");
+Equal(CoolerState.DifferentModel, telemetry.Current.State, "Display name alone cannot bypass product identity");
 telemetry.Accept(connected);
 foreach (var payload in new[] { "{}", "{\"currentRpm\":-1}", "{\"currentRpm\":65535}", "{\"currentRpm\":null}" })
 {
@@ -103,6 +125,12 @@ try
         var bootstrap = connected.Replace("\"isResponse\":true", "\"requestId\":\"" + request.RootElement.GetProperty("requestId").GetString() + "\",\"isResponse\":true");
         await writer.WriteLineAsync(bootstrap);
         Equal<int?>(83, (await updates.Reader.ReadAsync()).Percent, "Live pipe bootstrap reaches the UI snapshot");
+        await writer.WriteLineAsync("""{"isEvent":true,"type":"device-connected","data":{"productId":"0x1004","model":"BS3PRO"}}""");
+        var switched = await updates.Reader.ReadAsync();
+        Equal(CoolerModel.Bs3Pro, switched.Model, "Live pipe model switch reaches the UI");
+        Equal<int?>(null, switched.Rpm, "Live switch clears the old office reading");
+        await writer.WriteLineAsync("""{"isEvent":true,"type":"fan-data-update","data":{"currentRpm":3500,"targetRpm":3454}}""");
+        Equal<int?>(88, (await updates.Reader.ReadAsync()).Percent, "Live BS3 Pro measurement reaches the UI");
         await writer.WriteLineAsync("""{"isEvent":true,"type":"device-disconnected"}""");
         Equal<int?>(null, (await updates.Reader.ReadAsync()).Rpm, "Live disconnect clears the UI snapshot");
         }
